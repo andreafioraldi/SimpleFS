@@ -148,4 +148,10 @@ int DiskDriver_getFreeBlock(DiskDriver* disk, int start)
 }
 
 
+int DiskDriver_flush(DiskDriver* disk)
+{
+    printf("DiskDriver_flush NOT IMPLEMENTED\n");
+    exit(1);
+}
+
 

@@ -23,6 +23,7 @@ int BitMap_get(BitMap* bmap, int start, int status)
         
         if(s == status)
             return i;
+        ++i;
     }
     return -1;
 }
