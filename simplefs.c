@@ -75,7 +75,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
 		   -sizeof(FileControlBlock)
 		    -sizeof(int))/sizeof(int);
     
-    printf("BEGIN CREATE FILE %s\n", filename);
+    //printf("BEGIN CREATE FILE %s\n", filename);
 
     //check if a file already exists
     FirstFileBlock tmp;
@@ -101,11 +101,11 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
     {
         one_block = 0;
         block_idx = fb->header.next_block;
+        fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
         
         while(total_idx < fb->num_entries)
         {
             DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
-            fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
             
             idx = 0;
             for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
@@ -186,10 +186,124 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
     handle->current_block = (BlockHeader*)newfile;
     handle->pos_in_file = 0;
     
-    printf("CREATION OF %s SUCCESSFUL\n", filename);
+    //printf("CREATION OF %s SUCCESSFUL\n", filename);
     
     return handle;
 }
+
+
+int SimpleFS_readDir(char** names, DirectoryHandle* d)
+{
+    FirstDirectoryBlock *fb = d->dcb;
+    int fb_data_len = (BLOCK_SIZE
+		   -sizeof(BlockHeader)
+		   -sizeof(FileControlBlock)
+		    -sizeof(int))/sizeof(int);
+
+    //check if a file already exists
+    FirstFileBlock tmp;
+    int idx = 0;
+    
+    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    {
+        DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
+        names[idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
+    }
+    
+    int total_idx = idx;
+    int block_idx = fb->fcb.block_in_disk;
+
+    DirectoryBlock db;
+        
+    if(idx < fb->num_entries)
+    {
+        block_idx = fb->header.next_block;
+        fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
+        
+        while(total_idx < fb->num_entries)
+        {
+            DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
+            
+            idx = 0;
+            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            {
+                DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
+                names[total_idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
+            }
+        }
+    }
+    
+    return total_idx;
+}
+
+
+
+FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
+{
+    FirstDirectoryBlock *fb = d->dcb;
+    int fb_data_len = (BLOCK_SIZE
+		   -sizeof(BlockHeader)
+		   -sizeof(FileControlBlock)
+		    -sizeof(int))/sizeof(int);
+
+    //check if a file already exists
+    int found = 0;
+    FirstFileBlock *readed = malloc(sizeof(FirstFileBlock));
+    int idx = 0;
+    
+    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    {
+        DiskDriver_readBlock(d->sfs->disk, readed, fb->file_blocks[idx]);
+        if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
+        {
+            found = 1;
+            break;
+        }
+    }
+    
+    int total_idx = idx;
+    int block_idx = fb->fcb.block_in_disk;
+
+    DirectoryBlock db;
+        
+    if(!found && idx < fb->num_entries)
+    {
+        block_idx = fb->header.next_block;
+        fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
+        
+        while(total_idx < fb->num_entries)
+        {
+            DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
+            
+            idx = 0;
+            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            {
+                DiskDriver_readBlock(d->sfs->disk, readed, db.file_blocks[idx]);
+                if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
+                {
+                    found = 1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if(!found)
+    {
+        free(readed);
+        return NULL;
+    }
+    
+    FileHandle *handle = malloc(sizeof(FileHandle));
+    handle->sfs = d->sfs;
+    handle->fcb = readed;
+    handle->directory = fb;
+    handle->current_block = (BlockHeader*)readed;
+    handle->pos_in_file = 0;
+    
+    return handle;
+}
+
 
 
 
