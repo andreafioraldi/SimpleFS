@@ -4,7 +4,7 @@
 #include <string.h>
 
 //useful in debugging
-void hexdump(char *title, void* ptr, int size)
+void SimpleFS_hexdump(char *title, void* ptr, int size)
 {
     printf("------------------------------------------------------\n");
     printf("      HEXDUMP: %s\n", title);
@@ -34,7 +34,7 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk)
         return NULL;
     }
     
-    hexdump("SimpleFS_init", fdb, BLOCK_SIZE);
+    //SimpleFS_hexdump("SimpleFS_init", fdb, BLOCK_SIZE);
     
     DirectoryHandle *dh = malloc(sizeof(DirectoryHandle));
     dh->sfs = fs;
