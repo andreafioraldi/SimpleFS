@@ -3,6 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+//useful in debugging
+void hexdump(char *title, void* ptr, int size)
+{
+    printf("------------------------------------------------------\n");
+    printf("      HEXDUMP: %s\n", title);
+    printf("------------------------------------------------------\n");
+    
+    int i;
+    printf("   0: ");
+    for(i=0; i< size; ++i)
+    {
+        printf("%02hhX ", ((char*)ptr)[i]);
+        if( (i+1)%16==0 && i < size-1)
+            printf("\n%4d: ", i+1);
+    }
+    printf("\n------------------------------------------------------\n\n");
+}
+
+
 DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk)
 {
     fs->disk = disk;
@@ -14,14 +33,9 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk)
         free(fdb);
         return NULL;
     }
-    /*
-    int i;
-    for(i=0;i< 512;++i) {
-        printf("%02hhX ", ((char*)fdb)[i]);
-        if((i+1)%16==0)printf("\n");
-    }
-    printf("\n");
-    */
+    
+    hexdump("SimpleFS_init", fdb, BLOCK_SIZE);
+    
     DirectoryHandle *dh = malloc(sizeof(DirectoryHandle));
     dh->sfs = fs;
     dh->dcb = fdb;
@@ -61,9 +75,8 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
 		   -sizeof(FileControlBlock)
 		    -sizeof(int))/sizeof(int);
     
-    printf("CREATE FILE %s\n", filename);
-    printf("entries: %d\n", fb->num_entries);
-    
+    printf("BEGIN CREATE FILE %s\n", filename);
+
     //check if a file already exists
     FirstFileBlock tmp;
     int idx = 0;
