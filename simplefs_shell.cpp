@@ -8,10 +8,9 @@ extern "C" {
 
 using namespace std;
 
-string colored(string s)
-{
-    return "\033[0;33m" + s + "\033[0m";
-}
+#define COLOR "\033[0;33m"
+#define NOCLOROR "\033[0m"
+
 
 void help()
 {
@@ -39,7 +38,7 @@ void SimpleFS_shell(DirectoryHandle *root)
     
     while(1)
     {
-        cout << colored("SimpleFS> ");
+        cout << COLOR "SimpleFS> " NOCLOROR;
         getline(cin, cmd);
         cmd.erase(0, cmd.find_first_not_of(" \t\n\r\f\v"));
         cmd.erase(cmd.find_last_not_of(" \t\n\r\f\v") + 1);
@@ -75,7 +74,7 @@ int main(int argc, char **argv)
     
     if(root == NULL)
     {
-        cout << "formatting...\n";
+        cout << "Formatting disk...\n";
         SimpleFS_format(&sfs);
         root = SimpleFS_init(&sfs, &disk);
     }

@@ -305,5 +305,45 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
 }
 
 
+int SimpleFS_close(FileHandle* f)
+{
+    int r = 0;
+    if(f->fcb != f->current_block)
+        r = free(f->current_block);
+    r |= free(f->fcb);
+    r |= free(f);
+    return r;
+}
+
+
+
+int SimpleFS_write(FileHandle* f, void* data, int size)
+{
+    char* block_data;
+    int data_len;
+    
+    if(f->fcb == f->current_block)
+    {
+        block_data = f->fcb->data;
+        data_len = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
+    }
+    else
+    {
+        block_data = ((FileBlock*)f->current_block)->data;
+        data_len = BLOCK_SIZE - sizeof(BlockHeader);
+    }
+    
+    int s = data_len;
+    if(size < data_len)
+        s = size;
+    memcpy(data, block_data, s);
+    if(size < data_len)
+        return size;
+    
+    //TODO
+}
+
+
+
 
 
