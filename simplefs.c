@@ -316,27 +316,36 @@ int SimpleFS_close(FileHandle* f)
 }
 
 
-
+//funzione write che restituisce il numero di byte scritti. Prende come parametro il puntatore al file aperto, il puntatore ai byte da scivere e la lunghezza dei byte da scrivere
 int SimpleFS_write(FileHandle* f, void* data, int size)
 {
+    //puntatore ai byte da scrivere
     char* block_data;
+    //lunghezza dei byte da scrivere
     int data_len;
-    
+    //se sto puntando al primo blocco del file
     if(f->fcb == f->current_block)
     {
+        //ottengo l'array di byte da scrivere e la sua lunghezza
         block_data = f->fcb->data;
         data_len = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
     }
+    //sto puntando al secondo blocco del file
     else
     {
+        //ottengo l'array di byte da scrivere e la sua lunghezza
         block_data = ((FileBlock*)f->current_block)->data;
         data_len = BLOCK_SIZE - sizeof(BlockHeader);
     }
     
     int s = data_len;
+    // se i byte da scrivere non occupano tutto il blocco del file 
     if(size < data_len)
+        //mi segno effetivamente quanti byte devo scrivere
         s = size;
+    //copia i byte da scrivere sul blocco del file 
     memcpy(data, block_data, s);
+    
     if(size < data_len)
         return size;
     
