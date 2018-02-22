@@ -319,37 +319,104 @@ int SimpleFS_close(FileHandle* f)
 //funzione write che restituisce il numero di byte scritti. Prende come parametro il puntatore al file aperto, il puntatore ai byte da scivere e la lunghezza dei byte da scrivere
 int SimpleFS_write(FileHandle* f, void* data, int size)
 {
+    
+    /*
+    typedef struct {
+            SimpleFS* sfs;                   // pointer to memory file system structure
+            FirstFileBlock* fcb;             // pointer to the first block of the file(read it)
+            FirstDirectoryBlock* directory;  // pointer to the directory where the file is stored
+            BlockHeader* current_block;      // current block in the file
+            int pos_in_file;                 // position of the cursor
+        } FileHandle;
+        
+        typedef struct {
+                int previous_block; // chained list (previous block)
+                int next_block;     // chained list (next_block)
+                int block_in_file; // position in the file, if 0 we have a file control block
+        } BlockHeader;
+        
+        typedef struct {
+            BlockHeader header;
+            char  data[BLOCK_SIZE-sizeof(BlockHeader)];
+        } FileBlock;
+
+    */
     //puntatore ai byte da scrivere
     char* block_data;
     //lunghezza dei byte da scrivere
     int data_len;
-    //se sto puntando al primo blocco del file
+
+    
+    //il file è diviso in record. il primo record del file contiente una porzione che indica il controllo del file una che rappresnta l'hadler e una che rappresenta la porzione di file su cui scrivere
+    // dal primo in poi i record sono formati solo da handler e blocco file. Quindi prima di scrivere devo vedere se il puntatore del file aperto punta al primo record o non
+    
+    //se la posizione del primo record del file è quella puntata dal puntatore del file
     if(f->fcb == f->current_block)
     {
-        //ottengo l'array di byte da scrivere e la sua lunghezza
+        //ottengo un array di lunghezza di un blocco file e la sua lunghezza
         block_data = f->fcb->data;
         data_len = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
     }
-    //sto puntando al secondo blocco del file
+    //altrimenti
     else
     {
-        //ottengo l'array di byte da scrivere e la sua lunghezza
+        //ottengo un array di lunghezza di un blocco file e la sua lunghezza
         block_data = ((FileBlock*)f->current_block)->data;
         data_len = BLOCK_SIZE - sizeof(BlockHeader);
     }
     
+    //quando scrivo ho 2 casi: 1) in cui la lunghezza di byte da scrivere è minore della lunghezza dei vari blocchi del file quindi non devo allocare nessun blocco ma solo scorrerli mentre l'altro devo allocarli
+    
+    
+    
+    
     int s = data_len;
-    // se i byte da scrivere non occupano tutto il blocco del file 
+    // se i byte da scrivere hanno una lunghezza minore del recrod
     if(size < data_len)
         //mi segno effetivamente quanti byte devo scrivere
         s = size;
-    //copia i byte da scrivere sul blocco del file 
+    //copia i byte partendo dalla prima cella puntata in data nell'array block_data fermandosi alla cella di posizione s-1
     memcpy(data, block_data, s);
     
     if(size < data_len)
         return size;
+        
     
-    //TODO
+    // se i byte da scrivere hanno una lunghezza maggiore del recrod
+    if(size > data_len)
+    {
+    
+        //scorro la lista dei blocchi
+        // alloco uno spazio in meoria su cui copiare il record dal disco
+        BlockHeader* file_block = (BlockHeader*) malloc (sizeof(BlockHeader));
+        //copio record dal disco (il record susccessivo a quello corrente)
+        DiskDriver_readBlock(f->sfs->disk, (void*) file_block, f->current block->next block);
+    
+        //se il record è diverso da null, quindi ho ancora record nel file
+        if (file_block != NULL) 
+        {
+        
+            //scorro la lista dei record
+            f->current block = file_block;
+            //richiamo la funzione
+            return SimpleFS_write(f, data + data_len, size-data_len) + data_len;
+        
+        }
+        
+        else 
+        {
+            
+        }
+    
+    
+    
+    
+    
+        
+        
+    }
+    
+
 }
 
 
