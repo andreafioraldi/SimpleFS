@@ -386,26 +386,35 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
     if(size > data_len)
     {
     
-        //scorro la lista dei blocchi
-        // alloco uno spazio in meoria su cui copiare il record dal disco
-        BlockHeader* file_block = (BlockHeader*) malloc (sizeof(BlockHeader));
-        //copio record dal disco (il record susccessivo a quello corrente)
-        DiskDriver_readBlock(f->sfs->disk, (void*) file_block, f->current block->next block);
-    
-        //se il record è diverso da null, quindi ho ancora record nel file
-        if (file_block != NULL) 
-        {
         
+        
+    
+        //se ho ancora un indica al prossimo blocco
+        if (f->current block->next block != NULL) 
+        {
+            // alloco uno spazio in meoria su cui copiare il record dal disco
+            FileBlock* file_block = (FileBlock*) malloc (sizeof(FileBlock));
+            //copio record dal disco (il record susccessivo a quello corrente)
+            DiskDriver_readBlock(f->sfs->disk, (void*) file_block, f->current block->next block);
             //scorro la lista dei record
             f->current block = file_block;
             //richiamo la funzione
+            f -> pos_in_file += data_len;
+            
             return SimpleFS_write(f, data + data_len, size-data_len) + data_len;
         
         }
         
         else 
         {
-            
+          int index =  DiskDriver_getFreeBlock(f->sfs->disk, f -> fcb);
+          FileBlock* file_block = (FileBlock*) malloc (sizeof(FileBlock));
+          int DiskDriver_writeBlock(f->sfs->disk, file_block, index);
+          f->current block->next block = index;
+          
+          return SimpleFS_write(f, data, size) + 0;
+          
+          
         }
     
     
