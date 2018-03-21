@@ -307,12 +307,11 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
 
 int SimpleFS_close(FileHandle* f)
 {
-    int r = 0;
     if(f->fcb != f->current_block)
-        r = free(f->current_block);
-    r |= free(f->fcb);
-    r |= free(f);
-    return r;
+        free(f->current_block);
+    free(f->fcb);
+    free(f);
+    return 0;
 }
 
 
@@ -330,44 +329,67 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
     // numero di blocco corrente
     int num_of_block = f -> current_block -> block_in_file;
     
+    // numero di blocco nel disco dove è mappato il numero di blocco del file
+    int block_in_disk;
+    
+    char *target;
+    
     // se parto scrivendo dal primo blocco
     if (num_of_block == 0)
+    {
 		// ho tutti i byte del primo blocco tranne quelli già scritti
-		free_bytes = data_len_fb - cursor;  
+		free_bytes = data_len_fb - cursor;
+		target = ((FirstFileBlock*)f->current_block)->data;
+		data_len = data_len_fb;
+		// file -> first block -> file control block -> numero del blocco nel disco
+		block_in_disk = f -> fcb -> fcb.block_in_disk;
 
+	}
 	else 
+	{
 		// ho tutti i byte del secondo blocco tranne quelli già scritti
 		free_bytes = data_len - (cursor - data_len_fb - ((num_of_block - 1) * data_len));
+		target = ((FileBlock*)f->current_block)->data;
+    }
     
-    
-    
+   
     if (size<= free_bytes) 
     {
-	    memcpy(data, block_data, size);
+		//scrivo in target la parola
+	    memcpy(target + (data_len - free_bytes), data, size);
+	    //scrivo sul blocco corrente target (devo passare l'indice in quale blocco sta scritto il file -> impelemntare get index)
+	    DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
 	    f -> pos_in_file += size;
+	    
+	    printf("%d  %d  %d  %x    %x\n", cursor, free_bytes, data_len, target, target + (data_len - free_bytes));
+	    SimpleFS_hexdump("pippo", target, 100);
+	    
 	    return size;
 		
     }
     
-    else if (f->current block->next block != NULL)
+    else if (f->current_block->next_block != -1)
     {
-        memcpy(data, block_data, free_bytes);
+        memcpy(target + (data_len - free_bytes), data, free_bytes);
+        DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
 	    f -> pos_in_file += free_bytes;
 	    // alloco uno spazio in meoria su cui copiare il record dal disco
-        FileBlock tmp;
+        FileBlock * tmp = calloc(1, sizeof(FileBlock));
         //copio record dal disco (il record susccessivo a quello corrente)
-        DiskDriver_readBlock(f->sfs->disk, &tmp, f->current block->next block);
+        DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
         //scorro la lista dei record
-        f->current block = tmp;
+        f->current_block = (BlockHeader*)tmp;
 	    return free_bytes + SimpleFS_write(f, data + free_bytes, size-free_bytes);
 	}
 	
 	else 
     {
        int index =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
+       block_in_disk = index;
        FileBlock tmp;
-	   DiskDriver_writeBlock(f->sfs->disk, %tmp, index);
-       f->current block->next block = index;      
+	   DiskDriver_writeBlock(f->sfs->disk, &tmp, index);
+       f->current_block->next_block = index; 
+            
        return 0 + SimpleFS_write(f, data, size);
           
           

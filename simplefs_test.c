@@ -43,5 +43,8 @@ int main(int argc, char** argv)
     fh = SimpleFS_openFile(root, "file80");
     assert(fh!=NULL);
     
+    printf(" >> SimpleFS_write\n");
+    int w = SimpleFS_write(fh, "pippo", sizeof("pippo"));
+    assert(w == sizeof("pippo"));
     
 }
