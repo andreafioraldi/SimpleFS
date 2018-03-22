@@ -315,50 +315,73 @@ int SimpleFS_close(FileHandle* f)
 }
 
 
-//funzione write che restituisce il numero di byte scritti. Prende come parametro il puntatore al file aperto, il puntatore ai byte da scivere e la lunghezza dei byte da scrivere
+//funzione write che restituisce il numero di byte scritti. Prende come parametro il puntatore al file aperto, il puntatore all'array di byte da scivere e la lunghezza dei dell'array di byte da scrivere
 int SimpleFS_write(FileHandle* f, void* data, int size)
 {
     //lunghezza blocco dati primo blocco
     int data_len_fb = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
     //lunghezza blocco dati altri blocchi
     int data_len = BLOCK_SIZE - sizeof(BlockHeader);
-    //lbyte del blocco corrente che sono liberi
+    
+    //byte liberi del blocco dati corrente
     int free_bytes;
+    
     //cursore
     int cursor = f -> pos_in_file;
-    // numero di blocco corrente
+    
+    // numero di blocco file corrente
     int num_of_block = f -> current_block -> block_in_file;
     
-    // numero di blocco nel disco dove è mappato il numero di blocco del file
+    // numero di blocco disco dove è mappato il numero di blocco file
     int block_in_disk;
+    
+    // pntatore asiliario che punta ad array già allocato in memoria dove srivere i byte e che a suo volta dovrà essere scritto sul disco
     
     char *target;
     
-    // se parto scrivendo dal primo blocco
+    // setto informazioni...
+    //se parto dal primo blocco del file
     if (num_of_block == 0)
     {
 		// ho tutti i byte del primo blocco tranne quelli già scritti
 		free_bytes = data_len_fb - cursor;
+		
+		//punto target
 		target = ((FirstFileBlock*)f->current_block)->data;
+		
+		//dico che la lunghezza del blocco dati in questo caso è quella del primo blocco
 		data_len = data_len_fb;
-		// file -> first block -> file control block -> numero del blocco nel disco
+		
+		// setto l'indice del blocco disco dove è mappato il primo blocco del file
 		block_in_disk = f -> fcb -> fcb.block_in_disk;
 
 	}
+	//se non parto dal primo blocco del file
 	else 
 	{
-		// ho tutti i byte del secondo blocco tranne quelli già scritti
+		// ho tutti i byte del blocco tranne quelli già scritti
 		free_bytes = data_len - (cursor - data_len_fb - ((num_of_block - 1) * data_len));
+		
+		//punto target
 		target = ((FileBlock*)f->current_block)->data;
+		
+		//data len è già settata all'inizio
+		
+		// setto l'indice del blocco disco dove è mappato il primo blocco del file
+		block_in_disk = f -> current_block -> block_in_disk; 
     }
     
-   
+    //scrivo...
+    // se ho abbastanza spazio nel blocco data
     if (size<= free_bytes) 
     {
 		//scrivo in target la parola
 	    memcpy(target + (data_len - free_bytes), data, size);
-	    //scrivo sul blocco corrente target (devo passare l'indice in quale blocco sta scritto il file -> impelemntare get index)
+	    
+	    //scrivo sul blocco corrente target
 	    DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
+	    
+	    //aggiorni cursore
 	    f -> pos_in_file += size;
 	    
 	    printf("%d  %d  %d  %x    %x\n", cursor, free_bytes, data_len, target, target + (data_len - free_bytes));
@@ -367,30 +390,48 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 	    return size;
 		
     }
-    
+    // se non ho abbastanza spazio nel blocco data ma il blocco successivo è già stato creato
     else if (f->current_block->next_block != -1)
     {
+		//scrivo in target la parte di parola che posso scrivere
         memcpy(target + (data_len - free_bytes), data, free_bytes);
+        
+        //scrivo sul blocco corrente target
         DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
+        
+        //aggiorni cursore
 	    f -> pos_in_file += free_bytes;
-	    // alloco uno spazio in meoria su cui copiare il record dal disco
+	    
+	    // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
         FileBlock * tmp = calloc(1, sizeof(FileBlock));
-        //copio record dal disco (il record susccessivo a quello corrente)
+        
+        //copio blocco dal disco (il record susccessivo a quello corrente)
         DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
-        //scorro la lista dei record
+        
+        //scorro la lista dei blocchi (quello corrente è quello appena caricato)
         f->current_block = (BlockHeader*)tmp;
+        
+        //richiamo wrute tornando al caso iniziale
 	    return free_bytes + SimpleFS_write(f, data + free_bytes, size-free_bytes);
 	}
 	
+	// se non ho abbastanza spazio nel blocco data ed il blocco successivo non è ancora stato creato
 	else 
     {
-       int index =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
-       block_in_disk = index;
-       FileBlock tmp;
-	   DiskDriver_writeBlock(f->sfs->disk, &tmp, index);
-       f->current_block->next_block = index; 
-            
-       return 0 + SimpleFS_write(f, data, size);
+		//prendo l'indice del nuovo blocco
+		block_in_disk =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
+		
+		//array che scrivo sul blocco disco
+		FileBlock tmp;
+		
+		//scrivo l'array sul blocco disco
+		DiskDriver_writeBlock(f->sfs->disk, &tmp, block_in_disk);
+		
+		//aggiorno la lista dei blocchi dicendo che ho allocato un nuovo blocco per il file
+		f->current_block->next_block = block_in_disk; 
+		
+        //richiamo tornanod al caso iniziale    
+		return 0 + SimpleFS_write(f, data, size);
           
           
     }

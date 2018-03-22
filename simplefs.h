@@ -12,6 +12,7 @@ typedef struct {
   int previous_block; // chained list (previous block)
   int next_block;     // chained list (next_block)
   int block_in_file; // position in the file, if 0 we have a file control block
+  int block_in_disk; // repeated position of the block on the disk
 } BlockHeader;
 
 
