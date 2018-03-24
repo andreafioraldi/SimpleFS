@@ -127,7 +127,9 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
     FirstFileBlock* newfile = calloc(1, sizeof(FirstFileBlock));
     
     newfile->header.previous_block = newfile->header.next_block = -1;
+    newfile->header.block_in_disk = new_idx;
     newfile->fcb.directory_block = fb->fcb.block_in_disk;
+    newfile->fcb.block_in_disk = new_idx;
     strncpy(newfile->fcb.name, filename, FILENAME_MAX_LEN);
     newfile->fcb.size_in_blocks = 1;
 
@@ -156,6 +158,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
         new_db.header.previous_block = block_idx;
         new_db.header.next_block = -1;
         new_db.header.block_in_file = total_idx / fb->num_entries;
+        new_db.header.block_in_disk = n_block_idx;
         new_db.file_blocks[0] = new_idx;
         
         DiskDriver_writeBlock(d->sfs->disk, &new_db, n_block_idx);
@@ -422,7 +425,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 		block_in_disk =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
 		
 		//array che scrivo sul blocco disco
-		FileBlock tmp;
+		FileBlock tmp = {0};
 		
 		//scrivo l'array sul blocco disco
 		DiskDriver_writeBlock(f->sfs->disk, &tmp, block_in_disk);

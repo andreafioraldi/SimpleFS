@@ -9,7 +9,7 @@ int main(int argc, char** argv)
     SimpleFS sfs;
     DiskDriver disk;
 
-    DiskDriver_init(&disk, "test.disk", 2048);
+    DiskDriver_init(&disk, "test.disk", 256);
     DirectoryHandle *root = SimpleFS_init(&sfs, &disk);
     
     if(root == NULL || (argc > 1 && !strcmp(argv[1], "format")))
@@ -24,15 +24,15 @@ int main(int argc, char** argv)
     char name[80];
     int i;
     printf(" >> SimpleFS_createFile\n");
-    for(i = 0; i < 200; ++i) {
+    for(i = 0; i < 5; ++i) {
         sprintf(name, "file%d", i);
         SimpleFS_createFile(root, name);
     }
     
     printf(" >> SimpleFS_readDir\n");
-    char **names = malloc(200*sizeof(char*));
+    char **names = malloc(5*sizeof(char*));
     SimpleFS_readDir(names, root);
-    for(i = 0; i < 200; ++i) {
+    for(i = 0; i < 5; ++i) {
         sprintf(name, "file%d", i);
         assert(!strcmp(names[i], name));
     }
@@ -40,11 +40,15 @@ int main(int argc, char** argv)
     printf(" >> SimpleFS_openFile\n");
     FileHandle *fh = SimpleFS_openFile(root, "not-exists");
     assert(fh==NULL);
-    fh = SimpleFS_openFile(root, "file80");
+    fh = SimpleFS_openFile(root, "file2");
     assert(fh!=NULL);
     
     printf(" >> SimpleFS_write\n");
     int w = SimpleFS_write(fh, "pippo", sizeof("pippo"));
     assert(w == sizeof("pippo"));
+    
+    char *junk="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    w = SimpleFS_write(fh, junk, 600);
+    assert(w == 600);
     
 }
