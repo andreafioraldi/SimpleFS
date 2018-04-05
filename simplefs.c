@@ -348,7 +348,6 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
     {
 		// ho tutti i byte del primo blocco tranne quelli già scritti
 		free_bytes = data_len_fb - cursor;
-		
 		//punto target
 		target = ((FirstFileBlock*)f->current_block)->data;
 		
@@ -373,7 +372,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 		// setto l'indice del blocco disco dove è mappato il primo blocco del file
 		block_in_disk = f -> current_block -> block_in_disk; 
     }
-    
+	
     //scrivo...
     // se ho abbastanza spazio nel blocco data
     if (size<= free_bytes) 
@@ -382,14 +381,11 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 	    memcpy(target + (data_len - free_bytes), data, size);
 	    
 	    //scrivo sul blocco corrente target
-	    DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
+	    DiskDriver_writeBlock(f -> sfs -> disk, f->current_block, block_in_disk);
 	    
 	    //aggiorni cursore
 	    f -> pos_in_file += size;
-	    
-	    printf("%d  %d  %d  %x    %x\n", cursor, free_bytes, data_len, target, target + (data_len - free_bytes));
-	    SimpleFS_hexdump("pippo", target, 100);
-	    
+
 	    return size;
 		
     }
@@ -400,7 +396,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
         memcpy(target + (data_len - free_bytes), data, free_bytes);
         
         //scrivo sul blocco corrente target
-        DiskDriver_writeBlock(f -> sfs -> disk, target, block_in_disk);
+        DiskDriver_writeBlock(f -> sfs -> disk, f->current_block, block_in_disk);
         
         //aggiorni cursore
 	    f -> pos_in_file += free_bytes;
@@ -422,27 +418,24 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 	else 
     {
 		//prendo l'indice del nuovo blocco
-		block_in_disk =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
+		int tmp_block_in_disk =  DiskDriver_getFreeBlock(f->sfs->disk, f->sfs->disk->header->first_free_block);
 		
 		//array che scrivo sul blocco disco
 		FileBlock tmp = {0};
+		tmp.header.previous_block = block_in_disk;
+		tmp.header.next_block = -1;
+		tmp.header.block_in_file = num_of_block +1;
+		tmp.header.block_in_disk = tmp_block_in_disk;
 		
 		//scrivo l'array sul blocco disco
-		DiskDriver_writeBlock(f->sfs->disk, &tmp, block_in_disk);
+		DiskDriver_writeBlock(f->sfs->disk, &tmp, tmp_block_in_disk);
 		
 		//aggiorno la lista dei blocchi dicendo che ho allocato un nuovo blocco per il file
-		f->current_block->next_block = block_in_disk; 
+		f->current_block->next_block = tmp_block_in_disk; 
 		
         //richiamo tornanod al caso iniziale    
 		return 0 + SimpleFS_write(f, data, size);
-          
-          
     }
-
-        
-        
-    
-    
 
 }
 
