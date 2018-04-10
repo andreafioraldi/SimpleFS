@@ -453,10 +453,10 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
     int free_bytes;
     
     //cursore
-    int cursor = f -> pos_in_file;
+    int cursor = f->pos_in_file;
     
     // numero di blocco file corrente
-    int num_of_block = f -> current_block -> block_in_file;
+    int num_of_block = f->current_block->block_in_file;
 
     
     // pntatore asiliario che punta ad array già allocato in memoria dove leggere i byte e che a suo volta dovrà essere scritto sull'array data
@@ -473,8 +473,6 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
 		
 		//dico che la lunghezza del blocco dati in questo caso è quella del primo blocco
 		data_len = data_len_fb;
-		
-
 	}
 	//se non parto dal primo blocco del file
 	else 
@@ -496,10 +494,9 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
 	    memcpy(data, target + (data_len - free_bytes), size);
 	    
 	    //aggiorni cursore
-	    f -> pos_in_file += size;
+	    f->pos_in_file += size;
 
 	    return size;
-		
     }
     // sse non sono tutti nel blocco corrente e ce ne sono in quello successivo 
     else if (f->current_block->next_block != -1)
@@ -509,7 +506,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
         
         
         //aggiorni cursore
-	    f -> pos_in_file += free_bytes;
+	    f->pos_in_file += free_bytes;
 	    
 	    // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
         FileBlock * tmp = calloc(1, sizeof(FileBlock));
@@ -523,7 +520,6 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
         //richiamo read tornando al caso iniziale
 	    return free_bytes + SimpleFS_read(f, data + free_bytes, size-free_bytes);
 	}
-	
 	//sono nell'ultimo blocco del file
 	else 
     {
@@ -532,7 +528,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
         
         
         //aggiorni cursore
-	    f -> pos_in_file += free_bytes;
+	    f->pos_in_file += free_bytes;
         
 		return free_bytes;
     }
