@@ -52,5 +52,15 @@ int main(int argc, char** argv)
     w = SimpleFS_write(fh, junk, 600);
     assert(w == 600);
     
+    printf(" >> SimpleFS_read\n");
+    char* tmp = (char*) malloc (200*sizeof(char));
+    fh->pos_in_file -= 170;
+    int s = 150;
+    int j;
+    int v = SimpleFS_read(fh, (void*) tmp, s);
+    printf("%d\n", v);
+    for (j=0; j<s;++j) printf("%c", tmp[i]);
+    printf("\n");
+    
     
 }

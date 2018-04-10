@@ -439,7 +439,99 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 
 }
 
+int SimpleFS_read(FileHandle* f, void* data, int size)
+{
+    //lunghezza blocco dati primo blocco
+    int data_len_fb = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
+    //lunghezza blocco dati altri blocchi
+    int data_len = BLOCK_SIZE - sizeof(BlockHeader);
+    
+    //byte liberi del blocco dati corrente
+    int free_bytes;
+    
+    //cursore
+    int cursor = f -> pos_in_file;
+    
+    // numero di blocco file corrente
+    int num_of_block = f -> current_block -> block_in_file;
 
+    
+    // pntatore asiliario che punta ad array già allocato in memoria dove leggere i byte e che a suo volta dovrà essere scritto sull'array data
+    char *target;
+    
+    // setto informazioni...
+    //se parto dal primo blocco del file
+    if (num_of_block == 0)
+    {
+		// ho tutti i byte del primo blocco tranne quelli già scritti
+		free_bytes = data_len_fb - cursor;
+		//punto target
+		target = ((FirstFileBlock*)f->current_block)->data;
+		
+		//dico che la lunghezza del blocco dati in questo caso è quella del primo blocco
+		data_len = data_len_fb;
+		
 
+	}
+	//se non parto dal primo blocco del file
+	else 
+	{
+		// ho tutti i byte del blocco tranne quelli già scritti
+		free_bytes = data_len - (cursor - data_len_fb - ((num_of_block - 1) * data_len));
+		
+		//punto target
+		target = ((FileBlock*)f->current_block)->data;
+		
+		//data len è già settata all'inizio
+    }
+	
+    //leggo...
+    // se i byte da leggere sono tutti nel blocco data del blocco corrente
+    if (size<= free_bytes) 
+    {
+		//leggo la parola
+	    memcpy(data, target + (data_len - free_bytes), size);
+	    
+	    //aggiorni cursore
+	    f -> pos_in_file += size;
 
+	    return size;
+		
+    }
+    // sse non sono tutti nel blocco corrente e ce ne sono in quello successivo 
+    else if (f->current_block->next_block != -1)
+    {
+		//leggo i byte che posso leggere
+        memcpy(data, target + (data_len - free_bytes), free_bytes);
+        
+        
+        //aggiorni cursore
+	    f -> pos_in_file += free_bytes;
+	    
+	    // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
+        FileBlock * tmp = calloc(1, sizeof(FileBlock));
+        
+        //copio blocco dal disco (il record susccessivo a quello corrente)
+        DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
+        
+        //scorro la lista dei blocchi (quello corrente è quello appena caricato)
+        f->current_block = (BlockHeader*)tmp;
+        
+        //richiamo read tornando al caso iniziale
+	    return free_bytes + SimpleFS_read(f, data + free_bytes, size-free_bytes);
+	}
+	
+	//sono nell'ultimo blocco del file
+	else 
+    {
+        //leggo i byte che posso leggere
+        memcpy(data, target + (data_len - free_bytes), free_bytes);
+        
+        
+        //aggiorni cursore
+	    f -> pos_in_file += free_bytes;
+        
+		return free_bytes;
+    }
 
+}
