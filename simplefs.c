@@ -330,7 +330,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
     int free_bytes;
     
     //cursore
-    int cursor = f->pos_in_file;
+    int cursor = f->pos_in_file ;
     
     // numero di blocco file corrente
     int num_of_block = f->current_block->block_in_file;
@@ -384,7 +384,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
         DiskDriver_writeBlock(f->sfs->disk, f->current_block, block_in_disk);
         
         //aggiorni cursore
-        f->pos_in_file += size;
+        f->pos_in_file  += size;
         
         f->fcb->fcb.size_in_bytes += size;
         DiskDriver_writeBlock(f-> sfs->disk, f->fcb, f->fcb->header.block_in_disk);
@@ -401,7 +401,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
         DiskDriver_writeBlock(f->sfs->disk, f->current_block, block_in_disk);
         
         //aggiorni cursore
-        f->pos_in_file += free_bytes;
+        f->pos_in_file  += free_bytes;
         
         // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
         FileBlock * tmp = calloc(1, sizeof(FileBlock));
@@ -453,7 +453,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
     int free_bytes;
     
     //cursore
-    int cursor = f->pos_in_file;
+    int cursor = f->pos_in_file ;
     
     // numero di blocco file corrente
     int num_of_block = f->current_block->block_in_file;
@@ -494,7 +494,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
 	    memcpy(data, target + (data_len - free_bytes), size);
 	    
 	    //aggiorni cursore
-	    f->pos_in_file += size;
+	    f->pos_in_file  += size;
 
 	    return size;
     }
@@ -506,7 +506,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
         
         
         //aggiorni cursore
-	    f->pos_in_file += free_bytes;
+	    f->pos_in_file  += free_bytes;
 	    
 	    // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
         FileBlock * tmp = calloc(1, sizeof(FileBlock));
@@ -528,9 +528,52 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
         
         
         //aggiorni cursore
-	    f->pos_in_file += free_bytes;
+	    f->pos_in_file  += free_bytes;
         
 		return free_bytes;
     }
 
+}
+
+
+int SimpleFS_seek(FileHandle* f, int pos)
+{
+    //lunghezza blocco dati primo blocco
+    int data_len_fb = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
+    //lunghezza blocco dati altri blocchi
+    int data_len = BLOCK_SIZE - sizeof(BlockHeader);
+
+    int bytes_to_be_readed = f-> pos_in_file - pos;
+    int bytes_writed_in_block;
+
+    if (f->num_of_block == 0)
+       bytes_writed_in_block = f->pos_in_file ;
+
+
+    else 
+        bytes_writed_in_block(f->pos_in_file  - data_len_fb - ((f->current_block->block_in_file - 1) * data_len));
+
+    if (bytes_to_be_readed <= bytes_writed_in_block)
+    {
+        f->pos_in_file  -= bytes_to_be_readed;
+        return bytes_writed_in_block - bytes_to_be_readed;
+    }
+
+    else
+    {
+        f->pos_in_file  -= bytes_writed_in_block;
+
+        // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
+        FileBlock * tmp = calloc(1, sizeof(FileBlock));
+        
+        //copio blocco dal disco (il record susccessivo a quello corrente)
+        DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
+        
+        //scorro la lista dei blocchi (quello corrente è quello appena caricato)
+        f->current_block = (BlockHeader*)tmp;
+        
+        //richiamo read tornando al caso iniziale
+	    return bytes_writed_in_block + SimpleFS_seek(f, pos);
+
+    }
 }
