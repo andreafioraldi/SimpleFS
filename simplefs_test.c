@@ -52,8 +52,14 @@ int main(int argc, char** argv)
     "bbbbbbbbbbbbbbbbbbbb";
     w = SimpleFS_write(fh, junk, 600);
     assert(w == 600);
-    
-    fh->pos_in_file -= 20; //use seek when done
+
+    printf(" >> SimpleFS_seek\n");
+    int cursor = fh->pos_in_file;
+    int pos = 45;
+    w = SimpleFS_seek(fh, pos);
+    assert(w == cursor - pos);
+    assert(fh->pos_in_file == pos);
+    printf("we moved from pos %d to pos %d, so bytes reads = %d\n", cursor, pos, w);
     
     printf(" >> SimpleFS_read\n");
     char tmp[21];
