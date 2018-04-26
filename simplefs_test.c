@@ -69,5 +69,9 @@ int main(int argc, char** argv)
     printf("readed: %d\n", v);
     printf("%s\n", tmp);
     
+    printf(" >> SimpleFS_remove\n");
+    SimpleFS_remove(root, "file2");
+    fh = SimpleFS_openFile(root, "file2");
+    assert(fh==NULL);
     
 }

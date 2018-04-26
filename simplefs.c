@@ -579,3 +579,65 @@ int SimpleFS_seek(FileHandle* f, int pos)
 
     }
 }
+
+int delete(FileHandle* f)
+{
+    if (f->current_block->next_block != -1)
+    {
+        // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
+        FileBlock * tmp = calloc(1, sizeof(FileBlock));
+
+        //copio blocco dal disco (il record susccessivo a quello corrente)
+        DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
+
+        //scorro la lista dei blocchi (quello corrente è quello appena caricato)
+        f->current_block = (BlockHeader*)tmp;
+        
+        return delete (f) + DiskDriver_freeBlock(f->sfs->disk, f->current_block->block_in_disk);
+    }
+    
+    DiskDriver_freeBlock(f->sfs->disk, f->current_block->block_in_disk);
+    return 0;
+        
+};
+
+int SimpleFS_remove(DirectoryHandle* d, const char* filename)
+{
+    FileHandle* f = SimpleFS_openFile(d, filename);
+    delete(f);
+    free(f);
+    --(d->dcb->num_entries);
+    return 0;
+};
+
+/*
+// this is the first physical block of a directory
+typedef struct {
+  BlockHeader header;
+  FileControlBlock fcb;
+  int num_entries; 
+  int file_blocks[ (BLOCK_SIZE
+		   -sizeof(BlockHeader)
+		   -sizeof(FileControlBlock)
+		    -sizeof(int))/sizeof(int) ];
+} FirstDirectoryBlock;
+
+// this is remainder block of a directory
+typedef struct {
+  BlockHeader header;
+  int file_blocks[ (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int) ];
+} DirectoryBlock;
+
+typedef struct {
+  SimpleFS* sfs;                   // pointer to memory file system structure
+  FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
+  FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
+  BlockHeader* current_block;      // current block in the directory
+  int pos_in_dir;                  // absolute position of the cursor in the directory
+  int pos_in_block;                // relative position of the cursor in the block
+} DirectoryHandle;
+*/
+
+
+
+
