@@ -536,44 +536,89 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
 
 int SimpleFS_seek(FileHandle* f, int pos)
 {
+    assert(pos >= 0);
+    
+    //initializating informations
     int data_len_fb = BLOCK_SIZE - sizeof(FileControlBlock) - sizeof(BlockHeader);
 
     int data_len = BLOCK_SIZE - sizeof(BlockHeader);
 
-    int bytes_to_be_readed = f-> pos_in_file - pos;
-    assert(bytes_to_be_readed >=0);
-
     int bytes_writed_in_block;
+    
+    int free_bytes_in_block;
+    
+    int bytes_to_be_readed;
 
     if (f->current_block->block_in_file == 0)
-       bytes_writed_in_block = f->pos_in_file ;
-
-
-    else
-        bytes_writed_in_block = (f->pos_in_file  - data_len_fb - ((f->current_block->block_in_file - 1) * data_len));
-
-    if (bytes_to_be_readed <= bytes_writed_in_block)
     {
-        f->pos_in_file  -= bytes_to_be_readed;
-        return bytes_to_be_readed;
+       bytes_writed_in_block = f->pos_in_file ;
+       free_bytes_in_block = data_len_fb - bytes_writed_in_block;
     }
 
+    else 
+    {
+        bytes_writed_in_block = (f->pos_in_file  - data_len_fb - ((f->current_block->block_in_file - 1) * data_len));
+        free_bytes_in_block = data_len - bytes_writed_in_block;
+    }
+        
+        
+    //back seek 
+    if (f->pos_in_file >= pos)
+    {
+        bytes_to_be_readed = f->pos_in_file - pos;
+        
+        if (bytes_to_be_readed <= bytes_writed_in_block)
+        {
+            f->pos_in_file  -= bytes_to_be_readed;
+            return bytes_to_be_readed;
+        }
+
+        else
+        {
+            f->pos_in_file  -= bytes_writed_in_block;
+
+            FileBlock * tmp = calloc(1, sizeof(FileBlock));
+
+            DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->previous_block);
+
+            f->current_block = (BlockHeader*)tmp;
+
+	        return bytes_writed_in_block + SimpleFS_seek(f, pos);
+
+        }
+    }
+    
+    //forward seek
     else
     {
-        f->pos_in_file  -= bytes_writed_in_block;
+        
+        bytes_to_be_readed = pos - f->pos_in_file;
+        
+        //control end file
+        if (f->pos_in_file + bytes_to_be_readed > f->fcb->fcb.size_in_bytes)
+            bytes_to_be_readed = f->fcb->fcb.size_in_bytes - f->pos_in_file;
+        
+        //base case
+        if (bytes_to_be_readed <= free_bytes_in_block)
+        {
+            f->pos_in_file  += bytes_to_be_readed;
+            
+            return bytes_to_be_readed;
+        }
+        
+        else
+        {
+            f->pos_in_file  += free_bytes_in_block;
+ 
+            FileBlock * tmp = calloc(1, sizeof(FileBlock));
 
-        // alloco uno spazio in meoria su cui copiare il prossimo record dal disco
-        FileBlock * tmp = calloc(1, sizeof(FileBlock));
+            DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
 
-        //copio blocco dal disco (il record susccessivo a quello corrente)
-        DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->previous_block);
+            f->current_block = (BlockHeader*)tmp;
 
-        //scorro la lista dei blocchi (quello corrente è quello appena caricato)
-        f->current_block = (BlockHeader*)tmp;
+	        return bytes_writed_in_block + SimpleFS_seek(f, pos);
 
-        //richiamo read tornando al caso iniziale
-	    return bytes_writed_in_block + SimpleFS_seek(f, pos);
-
+        }
     }
 }
 

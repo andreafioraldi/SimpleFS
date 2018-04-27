@@ -37,7 +37,6 @@ int main(int argc, char** argv)
         sprintf(name, "file%d", i);
         assert(!strcmp(names[i], name));
     }
-    return 0;
     printf(" >> SimpleFS_openFile\n");
     FileHandle *fh = SimpleFS_openFile(root, "not-exists");
     assert(fh==NULL);
@@ -63,9 +62,9 @@ int main(int argc, char** argv)
     
     printf(" >> SimpleFS_seek - forward\n");
     cursor = fh->pos_in_file;
-    pos = 600;
+    pos = 66;
     w = SimpleFS_seek(fh, pos);
-    assert(w == cursor - pos);
+    assert(w == pos - cursor);
     assert(fh->pos_in_file == pos);
     printf("we moved from pos %d to pos %d, so bytes reads = %d\n", cursor, pos, w);
     
