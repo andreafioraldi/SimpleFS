@@ -1,4 +1,4 @@
-CCOPTS= -Wall -g -std=gnu99 -Wstrict-prototypes
+CCOPTS= -Wall -g -std=gnu99 -Wstrict-prototypes -O3
 LIBS= 
 CC=cc
 CXX=c++
@@ -7,7 +7,7 @@ AR=ar
 
 BINS= simplefs_test
 
-OBJS = simplefs.o disk_driver.o
+OBJS = bitmap.o simplefs.o disk_driver.o
 
 HEADERS=bitmap.h\
 	disk_driver.h\

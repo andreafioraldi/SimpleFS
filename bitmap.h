@@ -12,10 +12,9 @@ typedef struct {
   char bit_num;
 } BitMapEntryKey;
 
-
 // converts a block index to an index in the array,
 // and a char that indicates the offset of the bit inside the array
-static inline BitMapEntryKey BitMap_blockToIndex(int num)
+inline BitMapEntryKey BitMap_blockToIndex(int num)
 {
     BitMapEntryKey e;
     e.entry_num = num >> 3;
@@ -24,14 +23,14 @@ static inline BitMapEntryKey BitMap_blockToIndex(int num)
 }
 
 // converts a bit to a linear index
-static inline int BitMap_indexToBlock(int entry, uint8_t bit_num)
+inline int BitMap_indexToBlock(int entry, uint8_t bit_num)
 {
     return (entry << 3) | (bit_num & 0x7);
 }
 
 // returns the index of the first bit having status "status"
 // in the bitmap bmap, and starts looking from position start
-static inline int BitMap_get(BitMap* bmap, int start, int status)
+inline int BitMap_get(BitMap* bmap, int start, int status)
 {
     int i = start;
     while(i < bmap->num_bits)
@@ -48,7 +47,7 @@ static inline int BitMap_get(BitMap* bmap, int start, int status)
 
 // returns the status of the bit at index pos
 // in the bitmap bmap
-static inline int BitMap_lookup(BitMap* bmap, int pos)
+inline int BitMap_lookup(BitMap* bmap, int pos)
 {
     if(pos >= bmap->num_bits)
         return -1;
@@ -58,7 +57,7 @@ static inline int BitMap_lookup(BitMap* bmap, int pos)
 }
 
 // sets the bit at index pos in bmap to status
-static inline int BitMap_set(BitMap* bmap, int pos, int status)
+inline int BitMap_set(BitMap* bmap, int pos, int status)
 {
     if(pos >= bmap->num_bits)
         return -1;
@@ -68,5 +67,4 @@ static inline int BitMap_set(BitMap* bmap, int pos, int status)
     bmap->entries[e.entry_num] |= status << e.bit_num;
     return pos;
 }
-
 
