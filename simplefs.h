@@ -66,7 +66,7 @@ typedef struct {
 
 typedef struct {
   DiskDriver* disk;
-  struct DirectoryHanler* dh;
+  //DirectoryHandle* dh;
   // add more fields if needed
 } SimpleFS;
 

@@ -40,7 +40,7 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk)
     DirectoryHandle *dh = malloc(sizeof(DirectoryHandle));
     dh->sfs = fs;
     dh->dcb = fdb;
-    dh->directory = NULL;
+    dh->directory = fdb;
     dh->current_block = &fdb->header;
     dh->pos_in_dir = dh->pos_in_block = 0;
 
@@ -75,8 +75,6 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
            -sizeof(BlockHeader)
            -sizeof(FileControlBlock)
             -sizeof(int))/sizeof(int);
-
-    //printf("BEGIN CREATE FILE %s\n", filename);
 
     //check if a file already exists
     FirstFileBlock tmp;
@@ -190,8 +188,6 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename)
     handle->current_block = (BlockHeader*)newfile;
     handle->pos_in_file = 0;
 
-    //printf("CREATION OF %s SUCCESSFUL\n", filename);
-
     return handle;
 }
 
@@ -207,7 +203,6 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
     //check if a file already exists
     FirstFileBlock tmp;
     int idx = 0;
-
     for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
         DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
@@ -234,6 +229,8 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
                 DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
                 names[total_idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
             }
+            
+            block_idx = db.header.next_block;
         }
     }
 
@@ -637,6 +634,97 @@ typedef struct {
   int pos_in_block;                // relative position of the cursor in the block
 } DirectoryHandle;
 */
+
+
+
+int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
+{
+    FirstDirectoryBlock *fb = d->dcb;
+    int fb_data_len = (BLOCK_SIZE
+           -sizeof(BlockHeader)
+           -sizeof(FileControlBlock)
+            -sizeof(int))/sizeof(int);
+    
+    if(!strcmp("..", dirname))
+    {
+        FirstDirectoryBlock *parent = calloc(1, sizeof(FirstDirectoryBlock));
+        
+        DiskDriver_readBlock(d->sfs->disk, parent, d->directory->fcb.directory_block);
+        d->dcb = d->directory;
+        d->directory = parent;
+        
+        free(fb);
+        return 0;
+    }
+    
+    FirstFileBlock tmp;
+    int idx = 0;
+    int found = -1;
+    
+    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    {
+        DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
+
+        if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+        {
+            if(!tmp.fcb.is_dir) //file 'dirname' is not a diretory
+                return -1;
+            
+            found = fb->file_blocks[idx];
+            break;
+        }
+    }
+
+    if(found == -1)
+    {
+        int total_idx = idx;
+        int block_idx = fb->fcb.block_in_disk;
+
+        DirectoryBlock db;
+
+        if(idx < fb->num_entries)
+        {
+            block_idx = fb->header.next_block;
+            fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
+
+            while(total_idx < fb->num_entries)
+            {
+                DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
+
+                idx = 0;
+                for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+                {
+                    DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
+                    
+                    if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+                    {
+                        if(!tmp.fcb.is_dir) //file 'dirname' is not a diretory
+                            return -1;
+                        
+                        found = db.file_blocks[idx];
+                        break;
+                    }
+                }
+
+                block_idx = db.header.next_block;
+            }
+        }
+    }
+    
+    if(found == -1)
+        return -1;
+    
+    FirstDirectoryBlock *current = calloc(1, sizeof(FirstDirectoryBlock));
+    memcpy(current, &tmp, sizeof(FirstDirectoryBlock));
+    
+    d->directory = d->dcb;
+    d->dcb = current;
+    free(fb);
+    
+    return 0;
+}
+
+
 
 
 

@@ -9,7 +9,7 @@ int main(int argc, char** argv)
     SimpleFS sfs;
     DiskDriver disk;
 
-    DiskDriver_init(&disk, "test.disk", 256);
+    DiskDriver_init(&disk, "test.disk", 2048);
     DirectoryHandle *root = SimpleFS_init(&sfs, &disk);
     
     if(root == NULL || (argc > 1 && !strcmp(argv[1], "format")))
@@ -24,20 +24,20 @@ int main(int argc, char** argv)
     char name[80];
     int i;
     printf(" >> SimpleFS_createFile\n");
-    for(i = 0; i < 5; ++i) {
+    for(i = 0; i < 500; ++i) {
         sprintf(name, "file%d", i);
         SimpleFS_createFile(root, name);
     }
     
     printf(" >> SimpleFS_readDir\n");
-    char **names = malloc(5*sizeof(char*));
+    char **names = malloc(500*sizeof(char*));
     SimpleFS_readDir(names, root);
-    for(i = 0; i < 5; ++i) {
-    	printf("%d   %s\n", i, names[i]);
+    for(i = 0; i < 500; ++i) {
+    	//printf("%d   %s\n", i, names[i]);
         sprintf(name, "file%d", i);
         assert(!strcmp(names[i], name));
     }
-    
+    return 0;
     printf(" >> SimpleFS_openFile\n");
     FileHandle *fh = SimpleFS_openFile(root, "not-exists");
     assert(fh==NULL);
@@ -53,9 +53,17 @@ int main(int argc, char** argv)
     w = SimpleFS_write(fh, junk, 600);
     assert(w == 600);
 
-    printf(" >> SimpleFS_seek\n");
+    printf(" >> SimpleFS_seek - back\n");
     int cursor = fh->pos_in_file;
     int pos = 45;
+    w = SimpleFS_seek(fh, pos);
+    assert(w == cursor - pos);
+    assert(fh->pos_in_file == pos);
+    printf("we moved from pos %d to pos %d, so bytes reads = %d\n", cursor, pos, w);
+    
+    printf(" >> SimpleFS_seek - forward\n");
+    cursor = fh->pos_in_file;
+    pos = 600;
     w = SimpleFS_seek(fh, pos);
     assert(w == cursor - pos);
     assert(fh->pos_in_file == pos);
@@ -75,3 +83,6 @@ int main(int argc, char** argv)
     assert(fh==NULL);
     
 }
+
+
+
