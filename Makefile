@@ -7,7 +7,7 @@ AR=ar
 
 BINS= simplefs_test
 
-OBJS = bitmap.o simplefs.o disk_driver.o
+OBJS = simplefs.o disk_driver.o
 
 HEADERS=bitmap.h\
 	disk_driver.h\
