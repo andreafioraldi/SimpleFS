@@ -652,36 +652,6 @@ int SimpleFS_remove(DirectoryHandle* d, const char* filename)
     return 0;
 };
 
-/*
-// this is the first physical block of a directory
-typedef struct {
-  BlockHeader header;
-  FileControlBlock fcb;
-  int num_entries; 
-  int file_blocks[ (BLOCK_SIZE
-		   -sizeof(BlockHeader)
-		   -sizeof(FileControlBlock)
-		    -sizeof(int))/sizeof(int) ];
-} FirstDirectoryBlock;
-
-// this is remainder block of a directory
-typedef struct {
-  BlockHeader header;
-  int file_blocks[ (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int) ];
-} DirectoryBlock;
-
-typedef struct {
-  SimpleFS* sfs;                   // pointer to memory file system structure
-  FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
-  FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
-  BlockHeader* current_block;      // current block in the directory
-  int pos_in_dir;                  // absolute position of the cursor in the directory
-  int pos_in_block;                // relative position of the cursor in the block
-} DirectoryHandle;
-*/
-
-
-
 int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
 {
     FirstDirectoryBlock *fb = d->dcb;
@@ -769,8 +739,55 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
     return 0;
 }
 
+// creates a new directory in the current one (stored in fs->current_directory_block)
+int SimpleFS_mkDir(DirectoryHandle* d, char* dirname) {
 
+  //SimpleFS* sfs;                   // pointer to memory file system structure
+  //FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
+  //FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
+  //BlockHeader* current_block;      // current block in the directory
+  //int pos_in_dir;                  // absolute position of the cursor in the directory
+  //int pos_in_block;                // relative position of the cursor in the block
 
+    //dcb
+    //printf("of");
+    BlockHeader bh;
+    bh.block_in_file = 0;
+    bh.block_in_disk = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+    
+    FileControlBlock  fcb;
+    fcb.block_in_disk = bh.block_in_disk;
+    printf("of");
+    int i = 0;
+    for (; i<FILENAME_MAX_LEN; i++){
+        (fcb.name)[i] = *dirname;
+        dirname++;
+    }
+    
+    fcb.size_in_bytes = sizeof (FirstDirectoryBlock);
+    fcb.size_in_blocks = 1;
+    fcb.is_dir = 1;
+    
+    FirstDirectoryBlock* fb = (FirstDirectoryBlock*) malloc (sizeof(FirstDirectoryBlock));
+    fb->header = bh;
+    fb->fcb = fcb;
+    fb->num_entries = 0;
+    DiskDriver_writeBlock(d->sfs->disk, (void*) fb, bh.block_in_disk);
+    d->dcb = fb;
+    
+    //direcotry
 
+    
+    //current_block
+    d->current_block = &bh;
+    
+    //pos_in_dir
+    d->pos_in_dir = 0;
+    
+    //pos_in_dir
+    d->pos_in_block = 0;
+    
+    return 1;
+}
 
 
