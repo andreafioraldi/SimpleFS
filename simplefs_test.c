@@ -81,6 +81,14 @@ int main(int argc, char** argv)
     fh = SimpleFS_openFile(root, "file2");
     assert(fh==NULL);*/
     
+    printf(" >> SimpleFS_mkDir\n");
+    w = SimpleFS_mkDir(root, "giugu");
+    printf("%d\n",w);
+    
+    w = SimpleFS_mkDir(root, "baby");
+    printf("%d\n",w);
+    
+    
     
 }
 

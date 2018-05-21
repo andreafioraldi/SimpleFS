@@ -766,8 +766,11 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
 
         printf("directory %d: %s\n", idx, tmp.fcb.name);
 
-        if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN) && tmp.fcb.is_dir == 1)
+        if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+        {
+            
             return -1;
+        }
     }
     
     
@@ -801,8 +804,12 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
             for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
             {
                 DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
-                if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN && tmp.fcb.is_dir == 1))
+                printf("directory %d: %s\n", idx, tmp.fcb.name);
+                if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+                {
+                    printf("bubu");
                     return -1;
+                }
             }
 
             if(total_idx < fb->num_entries)
