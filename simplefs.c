@@ -652,6 +652,9 @@ int SimpleFS_remove(DirectoryHandle* d, const char* filename)
     return 0;
 };
 
+
+
+
 int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
 {
     FirstDirectoryBlock *fb = d->dcb;
@@ -739,55 +742,155 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
     return 0;
 }
 
-// creates a new directory in the current one (stored in fs->current_directory_block)
-int SimpleFS_mkDir(DirectoryHandle* d, char* dirname) {
+
+//crea un file nella directory corrente
+int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
+{
+    //Copio il primo blocco della directory corrente così da lavorarci senza fare sideeffect
+    FirstDirectoryBlock *fb = d->dcb;
+    //mi salvo qual è il numero massimo di file che il blocco corrente di directory può contenere
+    int fb_data_len = (BLOCK_SIZE
+           -sizeof(BlockHeader)
+           -sizeof(FileControlBlock)
+            -sizeof(int))/sizeof(int);
+
+    //check if a file already exists
+    FirstDirectoryBlock tmp;
+    int idx = 0;
+    
+    //finchè non supero il numero di file correnti contenuti nella directory o non supero il massimo di file contenuti nel primo blocco di directory
+    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    {
+        
+        DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
+
+        printf("directory %d: %s\n", idx, tmp.fcb.name);
+
+        if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN) && tmp.fcb.is_dir == 1)
+            return -1;
+    }
+    
+    
+    //a che indice sono arrivato
+    int total_idx = idx;
+    //mi salvo l'indice di blocco della directory corrente
+    int block_idx = fb->fcb.block_in_disk;
+    int one_block = 1;
+    
+    
+    DirectoryBlock db;
+
+    //caso in cui ho finito lo spazio massimo di file in un singolo blocco di directory
+    if(idx < fb->num_entries)
+    {
+        one_block = 0;
+        //mi salvo l'indice del blocco successivo della directory corrente
+        block_idx = fb->header.next_block;
+        
+        //mi salvo qual è il numero massimo di file che il blocco corrente di directory può contenere
+        fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
+        
+        //ficnhè non controllo tutti i file
+        while(total_idx < fb->num_entries)
+        {
+            //leggo in memoria il blocco successivo
+            DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
+            
+            //ripeto controllo
+            idx = 0;
+            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            {
+                DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
+                if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN && tmp.fcb.is_dir == 1))
+                    return -1;
+            }
+
+            if(total_idx < fb->num_entries)
+                block_idx = db.header.next_block;
+        }
+    }
+    
+    //prendo l'indice del primo blocco libero dove scrivere il primo blocco della direcotry
+    int new_idx = DiskDriver_getFreeBlock(d->sfs->disk, d->sfs->disk->header->first_free_block);
+    if(new_idx == -1)
+        return -1;
+
+    FirstDirectoryBlock* newdirectory = calloc(1, sizeof(FirstDirectoryBlock));
+
+    newdirectory->header.previous_block = newdirectory->header.next_block = -1;
+    newdirectory->header.block_in_disk = new_idx;
+    newdirectory->fcb.directory_block = fb->fcb.block_in_disk;
+    newdirectory->fcb.block_in_disk = new_idx;
+    strncpy(newdirectory->fcb.name, dirname, FILENAME_MAX_LEN);
+    newdirectory->fcb.size_in_blocks = 1;
+
+    //do not add block to dir
+    if(idx < fb_data_len)
+    {
+        if(one_block)
+            fb->file_blocks[idx] = new_idx;
+        else
+        {
+            db.file_blocks[idx] = new_idx;
+            //update last dir block
+            DiskDriver_writeBlock(d->sfs->disk, &db, block_idx);
+        }
+    }
+    else
+    {
+        int n_block_idx = DiskDriver_getFreeBlock(d->sfs->disk, new_idx +1);
+        if(n_block_idx == -1)
+        {
+            free(newdirectory);
+            return -1;
+        }
+
+        DirectoryBlock new_db = {0};
+        new_db.header.previous_block = block_idx;
+        new_db.header.next_block = -1;
+        new_db.header.block_in_file = total_idx / fb->num_entries;
+        new_db.header.block_in_disk = n_block_idx;
+        new_db.file_blocks[0] = new_idx;
+
+        DiskDriver_writeBlock(d->sfs->disk, &new_db, n_block_idx);
+
+         //update next_block with new dir block index
+        if(one_block)
+            fb->header.next_block = n_block_idx;
+        else
+        {
+            db.header.next_block = n_block_idx;
+            DiskDriver_writeBlock(d->sfs->disk, &db, block_idx);
+        }
+
+        fb->fcb.size_in_bytes += BLOCK_SIZE;
+        fb->fcb.size_in_blocks += 1;
+    }
+
+    DiskDriver_writeBlock(d->sfs->disk, newdirectory, new_idx);
+
+    //update fb
+    ++fb->num_entries;
+    DiskDriver_writeBlock(d->sfs->disk, fb, fb->fcb.block_in_disk);
+
 
   //SimpleFS* sfs;                   // pointer to memory file system structure
   //FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
   //FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
   //BlockHeader* current_block;      // current block in the directory
   //int pos_in_dir;                  // absolute position of the cursor in the directory
-  //int pos_in_block;                // relative position of the cursor in the block
+  //to set int pos_in_block;                // relative position of the cursor in the block
 
-    //dcb
-    //printf("of");
-    BlockHeader bh;
-    bh.block_in_file = 0;
-    bh.block_in_disk = DiskDriver_getFreeBlock(d->sfs->disk, 0);
-    
-    FileControlBlock  fcb;
-    fcb.block_in_disk = bh.block_in_disk;
-    printf("of");
-    int i = 0;
-    for (; i<FILENAME_MAX_LEN; i++){
-        (fcb.name)[i] = *dirname;
-        dirname++;
-    }
-    
-    fcb.size_in_bytes = sizeof (FirstDirectoryBlock);
-    fcb.size_in_blocks = 1;
-    fcb.is_dir = 1;
-    
-    FirstDirectoryBlock* fb = (FirstDirectoryBlock*) malloc (sizeof(FirstDirectoryBlock));
-    fb->header = bh;
-    fb->fcb = fcb;
-    fb->num_entries = 0;
-    DiskDriver_writeBlock(d->sfs->disk, (void*) fb, bh.block_in_disk);
-    d->dcb = fb;
-    
-    //direcotry
-
-    
-    //current_block
-    d->current_block = &bh;
-    
-    //pos_in_dir
+    d->directory = d->dcb;
+    d->dcb = newdirectory;
+    d->current_block = (BlockHeader*)newdirectory;
     d->pos_in_dir = 0;
     
-    //pos_in_dir
-    d->pos_in_block = 0;
-    
-    return 1;
+    return 0;
 }
+
+
+
+
 
 
