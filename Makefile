@@ -1,11 +1,7 @@
-CCOPTS= -Wall -g -std=gnu99 -Wstrict-prototypes -O3
+CCOPTS= -fPIC -Wall -g -std=gnu99 -Wstrict-prototypes -O3
 LIBS= 
 CC=cc
-CXX=c++
 AR=ar
-
-
-BINS= simplefs_test
 
 OBJS = bitmap.o simplefs.o disk_driver.o
 
@@ -16,13 +12,17 @@ HEADERS=bitmap.h\
 %.o:	%.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
 
-.phony: clean all
+.PHONY: clean all tests
 
+all: shared
 
-all:	$(BINS) 
+shared: $(OBJS) 
+	$(CC) $(CCOPTS) -shared -o libsimplefs.so $^ $(LIBS)
 
-simplefs_test: simplefs_test.c $(OBJS) 
-	$(CC) $(CCOPTS)  -o $@ $^ $(LIBS)
+tests: all
+	cd tests && make
+	cd tests && python run_tests.py
 
 clean:
-	rm -rf *.o *~  $(BINS)
+	rm -rf *.o *~ $(BINS) *.so
+	cd tests && make clean

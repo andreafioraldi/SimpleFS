@@ -1,3 +1,9 @@
+*.disk
+simplefs_test*
+test_rw
+test_create
+_test_tree
+
 # Prerequisites
 *.d
 

@@ -199,13 +199,14 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
            -sizeof(BlockHeader)
            -sizeof(FileControlBlock)
             -sizeof(int))/sizeof(int);
-
+    
     //check if a file already exists
     FirstFileBlock tmp;
     int idx = 0;
     for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
         DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
+        
         names[idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
     }
 
@@ -257,6 +258,12 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
         DiskDriver_readBlock(d->sfs->disk, readed, fb->file_blocks[idx]);
         if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
         {
+            if(readed->fcb.is_dir) //doh it's a dir not a file!
+            {
+                free(readed);
+                return NULL;
+            }
+            
             found = 1;
             break;
         }
@@ -282,6 +289,12 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
                 DiskDriver_readBlock(d->sfs->disk, readed, db.file_blocks[idx]);
                 if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
                 {
+                    if(readed->fcb.is_dir) //doh it's a dir not a file!
+                    {
+                        free(readed);
+                        return NULL;
+                    }
+                    
                     found = 1;
                     break;
                 }
@@ -561,7 +574,6 @@ int SimpleFS_seek(FileHandle* f, int pos)
         free_bytes_in_block = data_len - bytes_writed_in_block;
     }
         
-        
     //back seek 
     if (f->pos_in_file >= pos)
     {
@@ -609,15 +621,14 @@ int SimpleFS_seek(FileHandle* f, int pos)
         else
         {
             f->pos_in_file  += free_bytes_in_block;
- 
+
             FileBlock * tmp = calloc(1, sizeof(FileBlock));
 
             DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
 
             f->current_block = (BlockHeader*)tmp;
 
-	        return bytes_writed_in_block + SimpleFS_seek(f, pos);
-
+	        return free_bytes_in_block + SimpleFS_seek(f, pos);
         }
     }
 }
@@ -789,7 +800,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
         
         DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
 
-        printf("directory %d: %s\n", idx, tmp.fcb.name);
+        //printf("directory %d: %s\n", idx, tmp.fcb.name);
 
         if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
             return -1;
@@ -826,7 +837,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
             for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
             {
                 DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
-                printf("directory %d: %s\n", idx, tmp.fcb.name);
+                //printf("directory %d: %s\n", idx, tmp.fcb.name);
                 if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
                     return -1;
             }
@@ -849,6 +860,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
     newdirectory->fcb.block_in_disk = new_idx;
     strncpy(newdirectory->fcb.name, dirname, FILENAME_MAX_LEN);
     newdirectory->fcb.size_in_blocks = 1;
+    newdirectory->fcb.is_dir = 1;
 
     //do not add block to dir
     if(idx < fb_data_len)
@@ -898,23 +910,59 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
     //update fb
     ++fb->num_entries;
     DiskDriver_writeBlock(d->sfs->disk, fb, fb->fcb.block_in_disk);
-
-
-  //SimpleFS* sfs;                   // pointer to memory file system structure
-  //FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
-  //FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
-  //BlockHeader* current_block;      // current block in the directory
-  //int pos_in_dir;                  // absolute position of the cursor in the directory
-  //to set int pos_in_block;                // relative position of the cursor in the block
-
-    d->directory = d->dcb;
-    d->dcb = newdirectory;
-    d->current_block = (BlockHeader*)newdirectory;
-    d->pos_in_dir = 0;
     
     return 0;
 }
 
 
+
+
+int SimpleFS_isDir(DirectoryHandle* d, const char* dirname)
+{
+    FirstDirectoryBlock *fb = d->dcb;
+    int fb_data_len = (BLOCK_SIZE
+           -sizeof(BlockHeader)
+           -sizeof(FileControlBlock)
+            -sizeof(int))/sizeof(int);
+    
+    FirstFileBlock tmp;
+    int idx = 0;
+    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    {
+        DiskDriver_readBlock(d->sfs->disk, &tmp, fb->file_blocks[idx]);
+        
+        if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+            return tmp.fcb.is_dir;
+    }
+
+    int total_idx = idx;
+    int block_idx = fb->fcb.block_in_disk;
+
+    DirectoryBlock db;
+
+    if(idx < fb->num_entries)
+    {
+        block_idx = fb->header.next_block;
+        fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
+
+        while(total_idx < fb->num_entries)
+        {
+            DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
+
+            idx = 0;
+            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            {
+                DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
+                
+                if(!strncmp(tmp.fcb.name, dirname, FILENAME_MAX_LEN))
+                    return tmp.fcb.is_dir;
+            }
+            
+            block_idx = db.header.next_block;
+        }
+    }
+
+    return 0;
+}
 
 
