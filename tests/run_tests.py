@@ -7,7 +7,7 @@ tests = filter(test_re.match, os.listdir("."))
 res = {}
 
 for t in tests:
-    print " >> RUNNING", t
+    print " >> running", t
     r = os.system("./" + t)
     res[t] = r
 

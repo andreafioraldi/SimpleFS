@@ -1,15 +1,15 @@
-CCOPTS= -fPIC -Wall -g -std=gnu99 -Wstrict-prototypes -O3
+CCOPTS= -fPIC -Wall -g -std=gnu99 -Wstrict-prototypes -O3 -Iinclude
 LIBS= 
 CC=cc
 AR=ar
 
-OBJS = bitmap.o simplefs.o disk_driver.o
+OBJS = src/bitmap.o src/simplefs.o src/disk_driver.o
 
-HEADERS=bitmap.h\
-	disk_driver.h\
-	simplefs.h
+HEADERS=include/bitmap.h\
+	include/disk_driver.h\
+	include/simplefs.h
 
-%.o:	%.c $(HEADERS)
+%.o: %.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
 
 .PHONY: clean all tests
@@ -24,5 +24,5 @@ tests: all
 	cd tests && python run_tests.py
 
 clean:
-	rm -rf *.o *~ $(BINS) *.so
+	rm -rf *.o *~ $(BINS) *.so src/*.o
 	cd tests && make clean

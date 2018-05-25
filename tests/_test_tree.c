@@ -19,7 +19,9 @@ void print_directory_tree(DirectoryHandle *d, int level)
     	
     	r = SimpleFS_changeDir(d, names[i]);
     	if(r < 0) //not a dir
+        {	
     	    continue;
+	    }
 	    
 	    print_directory_tree(d, level +1);
 	    SimpleFS_changeDir(d, "..");
