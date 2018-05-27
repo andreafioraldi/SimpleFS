@@ -419,7 +419,10 @@ int SimpleFS_write(FileHandle* f, void* data, int size)
 
         //copio blocco dal disco (il record susccessivo a quello corrente)
         DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
-
+        
+        if(f->current_block != (BlockHeader*)f->fcb)
+            free(f->current_block);
+        
         //scorro la lista dei blocchi (quello corrente è quello appena caricato)
         f->current_block = (BlockHeader*)tmp;
 
@@ -524,7 +527,10 @@ int SimpleFS_read(FileHandle* f, void* data, int size)
 
         //copio blocco dal disco (il record susccessivo a quello corrente)
         DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
-
+        
+        if(f->current_block != (BlockHeader*)f->fcb)
+            free(f->current_block);
+        
         //scorro la lista dei blocchi (quello corrente è quello appena caricato)
         f->current_block = (BlockHeader*)tmp;
 
@@ -592,7 +598,10 @@ int SimpleFS_seek(FileHandle* f, int pos)
             FileBlock * tmp = calloc(1, sizeof(FileBlock));
 
             DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->previous_block);
-
+            
+            if(f->current_block != (BlockHeader*)f->fcb)
+                free(f->current_block);
+            
             f->current_block = (BlockHeader*)tmp;
 
 	        return bytes_writed_in_block + SimpleFS_seek(f, pos);
@@ -626,6 +635,9 @@ int SimpleFS_seek(FileHandle* f, int pos)
 
             DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
 
+            if(f->current_block != (BlockHeader*)f->fcb)
+                free(f->current_block);
+            
             f->current_block = (BlockHeader*)tmp;
 
 	        return free_bytes_in_block + SimpleFS_seek(f, pos);
@@ -643,6 +655,9 @@ int delete(FileHandle* f)
         //copio blocco dal disco (il record susccessivo a quello corrente)
         DiskDriver_readBlock(f->sfs->disk, tmp, f->current_block->next_block);
 
+        if(f->current_block != (BlockHeader*)f->fcb)
+            free(f->current_block);
+        
         //scorro la lista dei blocchi (quello corrente è quello appena caricato)
         f->current_block = (BlockHeader*)tmp;
         
@@ -773,9 +788,11 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname)
     FirstDirectoryBlock *current = calloc(1, sizeof(FirstDirectoryBlock));
     memcpy(current, &tmp, sizeof(FirstDirectoryBlock));
     
+    if(d->directory != d->dcb)
+        free(d->directory);
+    
     d->directory = d->dcb;
     d->dcb = current;
-    free(fb);
     
     return 0;
 }
@@ -852,15 +869,15 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
     if(new_idx == -1)
         return -1;
 
-    FirstDirectoryBlock* newdirectory = calloc(1, sizeof(FirstDirectoryBlock));
+    FirstDirectoryBlock newdirectory = {0};
 
-    newdirectory->header.previous_block = newdirectory->header.next_block = -1;
-    newdirectory->header.block_in_disk = new_idx;
-    newdirectory->fcb.directory_block = fb->fcb.block_in_disk;
-    newdirectory->fcb.block_in_disk = new_idx;
-    strncpy(newdirectory->fcb.name, dirname, FILENAME_MAX_LEN);
-    newdirectory->fcb.size_in_blocks = 1;
-    newdirectory->fcb.is_dir = 1;
+    newdirectory.header.previous_block = newdirectory.header.next_block = -1;
+    newdirectory.header.block_in_disk = new_idx;
+    newdirectory.fcb.directory_block = fb->fcb.block_in_disk;
+    newdirectory.fcb.block_in_disk = new_idx;
+    strncpy(newdirectory.fcb.name, dirname, FILENAME_MAX_LEN);
+    newdirectory.fcb.size_in_blocks = 1;
+    newdirectory.fcb.is_dir = 1;
 
     //do not add block to dir
     if(idx < fb_data_len)
@@ -879,7 +896,6 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
         int n_block_idx = DiskDriver_getFreeBlock(d->sfs->disk, new_idx +1);
         if(n_block_idx == -1)
         {
-            free(newdirectory);
             return -1;
         }
 
@@ -905,7 +921,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname)
         fb->fcb.size_in_blocks += 1;
     }
 
-    DiskDriver_writeBlock(d->sfs->disk, newdirectory, new_idx);
+    DiskDriver_writeBlock(d->sfs->disk, &newdirectory, new_idx);
 
     //update fb
     ++fb->num_entries;

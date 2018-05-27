@@ -31,7 +31,11 @@ int main(int argc, char** argv)
     int i;
     for(i = 0; i < 500; ++i) {
         sprintf(name, "file%d", i);
-        SimpleFS_createFile(root, name);
+        FileHandle *new_file = SimpleFS_createFile(root, name);
+        if(new_file)
+        {
+            SimpleFS_close(new_file);
+        }
     }
     
     for(i = 0; i < 500; ++i) {
@@ -48,7 +52,12 @@ int main(int argc, char** argv)
         else sprintf(name, "folder%d", i - 500);
         if(strcmp(names[i], name))
             fail(name);
+        free(names[i]);
     }
+    free(names);
+    
+    free(root->dcb);
+    free(root);
     
     printf(" >> TEST PASSED!\n");
     return 0;

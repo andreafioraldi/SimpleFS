@@ -27,7 +27,11 @@ int main(int argc, char** argv)
             return 0;
     }
     
-    SimpleFS_createFile(root, "file");
+    FileHandle* empty = SimpleFS_createFile(root, "file");
+    if(empty)
+    {
+        SimpleFS_close(empty);
+    }
     
     FileHandle* fh = SimpleFS_openFile(root, "file");
     
@@ -55,6 +59,10 @@ int main(int argc, char** argv)
     if(fh->pos_in_file != pos) fail("SimpleFS_seek forward wrong pos");
     
     SimpleFS_write(fh, "ciao", 4);
+    
+    SimpleFS_close(fh);
+    free(root->dcb);
+    free(root);
     
     printf(" >> TEST PASSED!\n");
     return 0;
