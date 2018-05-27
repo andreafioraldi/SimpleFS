@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 void print_directory_tree(DirectoryHandle *d, int level)
 {

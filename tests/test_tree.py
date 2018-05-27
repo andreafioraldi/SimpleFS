@@ -14,7 +14,11 @@ correct = """/
 > file2
 """
 
-o = subprocess.check_output(['./_test_tree'])
+try:
+    o = subprocess.check_output(['./_test_tree'])
+except subprocess.CalledProcessError:
+    print(" >> TEST FAILED - wrong exit code")
+    sys.exit(1)
 
 if o == correct:
     print(" >> TEST PASSED!")

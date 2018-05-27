@@ -3,6 +3,7 @@ simplefs_test*
 test_rw
 test_create
 _test_tree
+test_driver
 
 # Prerequisites
 *.d

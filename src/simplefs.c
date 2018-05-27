@@ -321,6 +321,9 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
 
 int SimpleFS_close(FileHandle* f)
 {
+    if(f == NULL)
+        return 1;
+    
     if((BlockHeader*)f->fcb != f->current_block)
         free(f->current_block);
     free(f->fcb);
