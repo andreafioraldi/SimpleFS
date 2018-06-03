@@ -219,7 +219,8 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
     //check if a file already exists
     FirstFileBlock tmp;
     int idx = 0, names_idx = 0;
-    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    
+    for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
         if(fb->file_blocks[idx] != -1)
         {
@@ -230,28 +231,27 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
         }
     }
 
-    int total_idx = idx;
     int block_idx = fb->fcb.block_in_disk;
 
     DirectoryBlock db;
 
-    if(idx < fb->num_entries)
+    if(names_idx < fb->num_entries)
     {
         block_idx = fb->header.next_block;
         fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
 
-        while(total_idx < fb->num_entries)
+        while(names_idx < fb->num_entries)
         {
             DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
 
             idx = 0;
-            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
             {
                 if(db.file_blocks[idx] != -1)
                 {
                     DiskDriver_readBlock(d->sfs->disk, &tmp, db.file_blocks[idx]);
                     
-                    names[total_idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
+                    names[names_idx] = strndup(tmp.fcb.name, FILENAME_MAX_LEN);
                     ++names_idx;
                 }
             }
@@ -262,7 +262,6 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d)
 
     return names_idx;
 }
-
 
 
 FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
@@ -276,9 +275,9 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
     //check if a file already exists
     int found = 0;
     FirstFileBlock *readed = malloc(sizeof(FirstFileBlock));
-    int idx = 0;
+    int idx = 0, names_idx = 0;
 
-    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
         if(fb->file_blocks[idx] != -1)
         {
@@ -294,25 +293,26 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
                 found = 1;
                 break;
             }
+            
+            ++names_idx;
         }
     }
 
-    int total_idx = idx;
     int block_idx = fb->fcb.block_in_disk;
 
     DirectoryBlock db;
 
-    if(!found && idx < fb->num_entries)
+    if(!found && names_idx < fb->num_entries)
     {
         block_idx = fb->header.next_block;
         fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
 
-        while(total_idx < fb->num_entries)
+        while(names_idx < fb->num_entries)
         {
             DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
 
             idx = 0;
-            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
             {
                 if(db.file_blocks[idx] != -1)
                 {
@@ -328,6 +328,8 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename)
                         found = 1;
                         break;
                     }
+                    
+                    ++names_idx;
                 }
             }
         }
@@ -696,59 +698,71 @@ int SimpleFS_remove(DirectoryHandle* d, const char* filename)
 
     //check if a file exists
     int found = 0;
-    FirstFileBlock *readed = malloc(sizeof(FirstFileBlock));
-    int idx = 0;
+    FirstFileBlock readed = {0};
+    int idx = 0, names_idx = 0;
 
-    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
-        DiskDriver_readBlock(d->sfs->disk, readed, fb->file_blocks[idx]);
-        if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
+        if(fb->file_blocks[idx] != -1)
         {
+            DiskDriver_readBlock(d->sfs->disk, &readed, fb->file_blocks[idx]);
+            if(!strncmp(readed.fcb.name, filename, FILENAME_MAX_LEN))
+            {
+                
+                found = 1;
+                fb->file_blocks[idx] = -1;
+                break;
+            }
             
-            found = 1;
-            fb->file_blocks[idx] = -1;
-            break;
+            ++names_idx;
         }
     }
-
-    int total_idx = idx;
+    
     int block_idx = fb->fcb.block_in_disk;
 
     DirectoryBlock db;
 
-    if(!found && idx < fb->num_entries)
+    if(!found && names_idx < fb->num_entries)
     {
         block_idx = fb->header.next_block;
         fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
 
-        while(total_idx < fb->num_entries)
+        while(names_idx < fb->num_entries)
         {
             DiskDriver_readBlock(d->sfs->disk, &db, block_idx);
 
             idx = 0;
-            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
             {
-                DiskDriver_readBlock(d->sfs->disk, readed, db.file_blocks[idx]);
-                if(!strncmp(readed->fcb.name, filename, FILENAME_MAX_LEN))
+                if(db.file_blocks[idx] != -1)
                 {
+                    DiskDriver_readBlock(d->sfs->disk, &readed, db.file_blocks[idx]);
+                    if(!strncmp(readed.fcb.name, filename, FILENAME_MAX_LEN))
+                    {
+                        
+                        found = 1;
+                        db.file_blocks[idx] = -1;
+                        break;
+                    }
                     
-                    found = 1;
-                    db.file_blocks[idx] = -1;
-                    break;
+                    ++names_idx;
                 }
             }
+            
+            if (found)
+                DiskDriver_writeBlock(d->sfs->disk, &db, block_idx);
         }
     }
 
     if(!found)
     {
-        free(readed);
         return -1;
     }
    
    fb->num_entries--;
-   remove_general (readed, d->sfs->disk);
-   free(readed);
+   DiskDriver_writeBlock(d->sfs->disk, fb, fb->header.block_in_disk);
+   
+   remove_general (&readed, d->sfs->disk);
    return 0;
 }
 
@@ -795,38 +809,47 @@ void remove_directory (FirstDirectoryBlock* fb, DiskDriver* disk)
            -sizeof(FileControlBlock)
             -sizeof(int))/sizeof(int);
 
-    FirstFileBlock *readed = malloc(sizeof(FirstFileBlock));
-    int idx = 0;
+    FirstFileBlock readed = {0};
+    int idx = 0, names_idx = 0;
 
-    for(; idx < fb->num_entries && idx < fb_data_len; ++idx)
+    for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
     {
-        DiskDriver_readBlock(disk, readed, fb->file_blocks[idx]);
-        remove_general(readed, disk);
+        if(fb->file_blocks[idx] != -1)
+        {
+            DiskDriver_readBlock(disk, &readed, fb->file_blocks[idx]);
+            remove_general(&readed, disk);
+            
+            ++names_idx;
+        }
     }
 
-    int total_idx = idx;
     int block_idx = fb->fcb.block_in_disk;
 
     DirectoryBlock db;
 
-    if(!idx < fb->num_entries)
+    if(names_idx < fb->num_entries)
     {
         block_idx = fb->header.next_block;
         fb_data_len = (BLOCK_SIZE-sizeof(BlockHeader))/sizeof(int);
 
-        while(total_idx < fb->num_entries)
+        while(names_idx < fb->num_entries)
         {
             DiskDriver_readBlock(disk, &db, block_idx);
 
             idx = 0;
-            for(; total_idx < fb->num_entries && idx < fb_data_len; ++idx, ++total_idx)
+            for(; names_idx < fb->num_entries && idx < fb_data_len; ++idx)
             {
-                DiskDriver_readBlock(disk, readed, db.file_blocks[idx]);
-                remove_general(readed, disk);
+                if(db.file_blocks[idx] != -1)
+                {
+                    DiskDriver_readBlock(disk, &readed, db.file_blocks[idx]);
+                    remove_general(&readed, disk);
+                    
+                    ++names_idx;
+                }
             }
         }
     }
-    free(readed);
+    
     remove_directory_blocks((DirectoryBlock* )fb, disk);
     return;
     
@@ -841,12 +864,11 @@ void remove_directory_blocks (DirectoryBlock* db, DiskDriver* disk)
     }
     else
     {
-        DirectoryBlock* tmp = (DirectoryBlock*) malloc (sizeof(DirectoryBlock));
-        DiskDriver_readBlock(disk, tmp, db->header.next_block);
-        remove_directory_blocks(tmp,disk);
-        free(tmp);
+        DirectoryBlock tmp = {0};
+        DiskDriver_readBlock(disk, &tmp, db->header.next_block);
+        remove_directory_blocks(&tmp, disk);
+        
         DiskDriver_freeBlock(disk, db->header.block_in_disk);
-       
     }
     
     return;

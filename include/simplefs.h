@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
   BlockHeader header;
   FileControlBlock fcb;
-  int num_entries; 
+  int num_entries;
   int file_blocks[ (BLOCK_SIZE
 		   -sizeof(BlockHeader)
 		   -sizeof(FileControlBlock)
@@ -104,7 +104,8 @@ void SimpleFS_format(SimpleFS* fs);
 // an empty file consists only of a block of type FirstBlock
 FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
 
-// reads in the (preallocated) blocks array, the name of all files in a directory 
+// reads in the (preallocated) blocks array, the name of all files in a directory
+// tha last element is NULL
 int SimpleFS_readDir(char** names, DirectoryHandle* d);
 
 
