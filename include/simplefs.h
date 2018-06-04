@@ -147,8 +147,5 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
 int SimpleFS_remove(DirectoryHandle* d, const char* filename);
 
 
-int SimpleFS_isDir(DirectoryHandle* d, const char* dirname);
-
-
 void SimpleFS_hexdump(char *title, void* ptr, int size);
 
